@@ -1,0 +1,6 @@
+data/raw/
+data/db/
+.DS_Store
+__pycache__/
+dist/
+data/processed/

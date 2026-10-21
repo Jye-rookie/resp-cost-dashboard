@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>호흡기 진료비 격차 모니터</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>호흡기 진료비 격차 모니터</h1>
+      <span class="sub" id="period-note"></span>
+      <span class="spacer"></span>
+      <button class="theme" id="theme" type="button">테마 전환</button>
+    </header>
+    <nav id="tabs" role="tablist"></nav>
+    <section id="filters" aria-label="필터"></section>
+    <main id="app"></main>
+    <footer>가상 청구 데이터(실제 진료 기록 아님) · 호흡기 질환 = 주상병 J코드 · 금액은 심사결정 기준 · 임상적 적정성은 판단하지 않고 비율만 표시</footer>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

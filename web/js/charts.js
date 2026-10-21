@@ -52,38 +52,48 @@ const s = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); fo
 function niceMax(v) { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)); const m = [1, 2, 2.5, 5, 10].find((k) => k * p >= v); return m * p; }
 
 export function line({ labels, series, fmt = fmtInt, unit = "" }) {
-  const W = 640, H = 240, L = 46, R = 12, T = 12, B = 28;
+  const wrap = h("div", { class: "line" });
   const maxV = niceMax(Math.max(...series.flatMap((x) => x.values.filter((v) => v != null)), 1));
-  const xAt = (i) => L + (labels.length < 2 ? 0 : (i / (labels.length - 1)) * (W - L - R));
-  const yAt = (v) => T + (1 - v / maxV) * (H - T - B);
-  const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, role: "img" });
-  for (let k = 0; k <= 4; k++) {
-    const v = (maxV * k) / 4, y = yAt(v);
-    svg.append(s("line", { x1: L, x2: W - R, y1: y, y2: y, class: "grid-l" }));
-    const t = s("text", { x: L - 6, y: y + 4, "text-anchor": "end", class: "tick" }); t.textContent = fmt(v); svg.append(t);
-  }
-  const step = Math.ceil(labels.length / 8);
-  labels.forEach((lb, i) => {
-    if (i % step) return;
-    const t = s("text", { x: xAt(i), y: H - 8, "text-anchor": "middle", class: "tick" }); t.textContent = lb; svg.append(t);
-  });
-  for (const se of series) {
-    let d = "";
-    se.values.forEach((v, i) => { if (v != null) d += (d ? "L" : "M") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1); });
-    svg.append(s("path", { d, class: "path", style: `stroke:${se.color}` }));
-  }
-  const xh = s("line", { y1: T, y2: H - B, class: "xh", style: "display:none" }); svg.append(xh);
-  const dots = series.map((se) => { const c = s("circle", { r: 4, style: `fill:${se.color};stroke:var(--surface);stroke-width:2;display:none` }); svg.append(c); return c; });
-  const hit = s("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent", tabindex: 0 }); svg.append(hit);
-  const at = (i) => {
-    xh.setAttribute("x1", xAt(i)); xh.setAttribute("x2", xAt(i)); xh.style.display = "";
-    dots.forEach((c, k) => { const v = series[k].values[i]; c.style.display = v == null ? "none" : ""; if (v != null) { c.setAttribute("cx", xAt(i)); c.setAttribute("cy", yAt(v)); } });
-    return { title: labels[i], rows: series.map((se) => [se.name, se.values[i] == null ? "–" : fmt(se.values[i]) + unit]).map((r, k) => Object.assign(r, { color: series[k].color })) };
+  const draw = (W) => {
+    const H = W < 480 ? 200 : 240, L = 46, R = 12, T = 12, B = 28;
+    const xAt = (i) => L + (labels.length < 2 ? 0 : (i / (labels.length - 1)) * (W - L - R));
+    const yAt = (v) => T + (1 - v / maxV) * (H - T - B);
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img" });
+    for (let k = 0; k <= 4; k++) {
+      const v = (maxV * k) / 4, y = yAt(v);
+      svg.append(s("line", { x1: L, x2: W - R, y1: y, y2: y, class: "grid-l" }));
+      const t = s("text", { x: L - 6, y: y + 4, "text-anchor": "end", class: "tick" }); t.textContent = fmt(v); svg.append(t);
+    }
+    const step = Math.ceil(labels.length / Math.max(2, Math.floor((W - L - R) / 64)));
+    labels.forEach((lb, i) => {
+      if (i % step) return;
+      const t = s("text", { x: xAt(i), y: H - 8, "text-anchor": "middle", class: "tick" }); t.textContent = lb; svg.append(t);
+    });
+    for (const se of series) {
+      let d = "";
+      se.values.forEach((v, i) => { if (v != null) d += (d ? "L" : "M") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1); });
+      svg.append(s("path", { d, class: "path", style: `stroke:${se.color}` }));
+    }
+    const xh = s("line", { y1: T, y2: H - B, class: "xh", style: "display:none" }); svg.append(xh);
+    const dots = series.map((se) => { const c = s("circle", { r: 4, style: `fill:${se.color};stroke:var(--surface);stroke-width:2;display:none` }); svg.append(c); return c; });
+    const hit = s("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent", tabindex: 0 }); svg.append(hit);
+    const at = (i) => {
+      xh.setAttribute("x1", xAt(i)); xh.setAttribute("x2", xAt(i)); xh.style.display = "";
+      dots.forEach((c, k) => { const v = series[k].values[i]; c.style.display = v == null ? "none" : ""; if (v != null) { c.setAttribute("cx", xAt(i)); c.setAttribute("cy", yAt(v)); } });
+      return { title: labels[i], rows: series.map((se, k) => Object.assign([se.name, se.values[i] == null ? "–" : fmt(se.values[i]) + unit], { color: series[k].color })) };
+    };
+    const idxOf = (e) => { const b = svg.getBoundingClientRect(); const x = ((e.clientX - b.left) / b.width) * W; return Math.max(0, Math.min(labels.length - 1, Math.round(((x - L) / (W - L - R)) * (labels.length - 1)))); };
+    hit.addEventListener("pointermove", (e) => showTip(at(idxOf(e)), e.clientX, e.clientY));
+    hit.addEventListener("pointerleave", () => { hideTip(); xh.style.display = "none"; dots.forEach((c) => (c.style.display = "none")); });
+    wrap.replaceChildren(svg);
   };
-  const idxOf = (e) => { const b = svg.getBoundingClientRect(); const x = ((e.clientX - b.left) / b.width) * W; return Math.max(0, Math.min(labels.length - 1, Math.round(((x - L) / (W - L - R)) * (labels.length - 1)))); };
-  hit.addEventListener("pointermove", (e) => showTip(at(idxOf(e)), e.clientX, e.clientY));
-  hit.addEventListener("pointerleave", () => { hideTip(); xh.style.display = "none"; dots.forEach((c) => (c.style.display = "none")); });
-  const wrap = h("div", { class: "line" }); wrap.append(svg);
+  let cur = 0;
+  draw(cur = 560);
+  // 컨테이너 폭에 맞춰 다시 그려서 모바일에서도 글자 크기가 줄지 않게 한다
+  new ResizeObserver((es) => {
+    const w = Math.round(es[0].contentRect.width);
+    if (w >= 240 && Math.abs(w - cur) > 6) draw((cur = w));
+  }).observe(wrap);
   return wrap;
 }
 
